@@ -5,7 +5,6 @@ import (
 	"unsafe"
 
 	"github.com/twgh/xcgui/common"
-	"github.com/twgh/xcgui/xc"
 )
 
 var (
@@ -36,7 +35,43 @@ var (
 	postQuitMessage            = user32.NewProc("PostQuitMessage")
 	sendMessageW               = user32.NewProc("SendMessageW")
 	postMessageW               = user32.NewProc("PostMessageW")
+	isWindow                   = user32.NewProc("IsWindow")
+	registerWindowMessageW     = user32.NewProc("RegisterWindowMessageW")
+	findWindowW                = user32.NewProc("FindWindowW")
 )
+
+// FindWindowW 检索顶级窗口的句柄，该窗口的类名称和窗口名称与指定的字符串匹配。 此函数不搜索子窗口。 此函数不执行区分大小写的搜索.
+//
+//	@Description 如果 lpWindowName 参数不 为 NULL， FindWindowW 将调用 GetWindowTextW 函数以检索窗口名称进行比较。 有关可能出现的潜在问题的说明，请参阅 GetWindowTextW 的备注。
+//	详见: https://learn.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-FindWindowW.
+//	@param lpClassName 窗口类名, 可为空.
+//	@param lpWindowName 窗口名称（窗口的标题）, 可为空.
+//	@return int 返回窗口句柄。
+func FindWindowW(lpClassName, lpWindowName string) int {
+	r, _, _ := findWindowW.Call(common.StrPtr(lpClassName), common.StrPtr(lpWindowName))
+	return int(r)
+}
+
+// RegisterWindowMessageW 定义保证在整个系统中唯一的新窗口消息。 发送或发布消息时可以使用消息值.
+//
+//	详见: https://learn.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-RegisterWindowMessageW.
+//	@param lpString 要注册的消息。
+//	@return int 如果成功注册消息，则返回值是范围0xC000到0xFFFF的消息标识符. 如果函数失败，则返回值为零.
+func RegisterWindowMessageW(lpString string) int {
+	r, _, _ := registerWindowMessageW.Call(common.StrPtr(lpString))
+	return int(r)
+}
+
+// IsWindow 判断一个窗口句柄是否有效.
+//
+//	@Description 线程不应将 IsWindow 用于未创建的窗口，因为调用此函数后可能会销毁该窗口。 此外，由于窗口句柄被回收，句柄甚至可以指向其他窗口.
+//	详见: https://learn.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-iswindow.
+//	@param hWnd 要测试的窗口的句柄。
+//	@return bool
+func IsWindow(hWnd int) bool {
+	r, _, _ := isWindow.Call(uintptr(hWnd))
+	return r != 0
+}
 
 type HWND_ int
 
@@ -320,9 +355,9 @@ func GetWindowTextW(hWnd int, lpString *string, nMaxCount int) int {
 //
 //	@Description 详见: https://docs.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-ClientToScreen.
 //	@param hWnd 窗口真实句柄
-//	@param lpPoint xc.POINT 指针. 如果函数成功，则将新的屏幕坐标复制到此结构中.
+//	@param lpPoint wapi.POINT 指针. 如果函数成功，则将新的屏幕坐标复制到此结构中.
 //	@return bool
-func ClientToScreen(hWnd int, lpPoint *xc.POINT) bool {
+func ClientToScreen(hWnd int, lpPoint *POINT) bool {
 	r, _, _ := clientToScreen.Call(uintptr(hWnd), uintptr(unsafe.Pointer(lpPoint)))
 	return r != 0
 }
@@ -330,9 +365,9 @@ func ClientToScreen(hWnd int, lpPoint *xc.POINT) bool {
 // GetCursorPos 检索鼠标光标的位置，以屏幕坐标表示.
 //
 //	@Description 详见: https://docs.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-getcursorpos.
-//	@param lpPoint 指向接收光标屏幕坐标的 xc.POINT 结构的指针.
+//	@param lpPoint 指向接收光标屏幕坐标的 wapi.POINT 结构的指针.
 //	@return bool
-func GetCursorPos(lpPoint *xc.POINT) bool {
+func GetCursorPos(lpPoint *POINT) bool {
 	r, _, _ := getCursorPos.Call(uintptr(unsafe.Pointer(lpPoint)))
 	return r != 0
 }
@@ -408,12 +443,8 @@ func DispatchMessage(pMsg *MSG) int {
 //
 //	@Description: https://docs.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-PostQuitMessage.
 //	@param nExitCode 应用程序退出代码。该值用作 WM_QUIT 消息的wParam参数。
-func PostQuitMessage(nExitCode int32) error {
-	_, _, err := postQuitMessage.Call(uintptr(nExitCode))
-	if err != nil {
-		return err
-	}
-	return nil
+func PostQuitMessage(nExitCode int32) {
+	postQuitMessage.Call(uintptr(nExitCode))
 }
 
 type MSG struct {
@@ -422,7 +453,12 @@ type MSG struct {
 	WParam  int32
 	LParam  int32
 	Time    uint32
-	Pt      xc.POINT
+	Pt      POINT
+}
+
+type POINT struct {
+	X int32
+	Y int32
 }
 
 // SendMessageW 将指定的消息发送到一个或多个窗口。SendMessage函数调用指定窗口的窗口过程，直到窗口过程处理完消息才返回。

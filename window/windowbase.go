@@ -2,7 +2,7 @@ package window
 
 import (
 	"github.com/twgh/xcgui/objectbase"
-	"github.com/twgh/xcgui/wnd"
+	"github.com/twgh/xcgui/wapi/wnd"
 	"github.com/twgh/xcgui/xc"
 	"github.com/twgh/xcgui/xcc"
 )
@@ -130,6 +130,15 @@ func (w *windowBase) RegEventC1(nEvent xcc.WM_, pFun interface{}) bool {
 // pFun: 事件函数.
 func (w *windowBase) RemoveEventC(nEvent xcc.WM_, pFun interface{}) bool {
 	return xc.XWnd_RemoveEventC(w.Handle, nEvent, pFun)
+}
+
+// 窗口_移除事件CEx, 和非Ex版相比只是最后一个参数不同.
+//
+// nEvent: 事件类型: xcc.WM_, xcc.XWM_.
+//
+// pFun: 事件函数指针, 使用 syscall.NewCallback() 生成..
+func (w *windowBase) RemoveEventCEx(nEvent xcc.WM_, pFun uintptr) bool {
+	return xc.XWnd_RemoveEventCEx(w.Handle, nEvent, pFun)
 }
 
 // 窗口_添加子对象.
@@ -271,8 +280,8 @@ func (w *windowBase) EnableMaxWindow(bEnable bool) int {
 // 窗口_启用限制窗口大小.
 //
 // bEnable: 是否启用.
-func (w *windowBase) EnablemLimitWindowSize(bEnable bool) int {
-	return xc.XWnd_EnablemLimitWindowSize(w.Handle, bEnable)
+func (w *windowBase) EnableLimitWindowSize(bEnable bool) int {
+	return xc.XWnd_EnableLimitWindowSize(w.Handle, bEnable)
 }
 
 // 窗口_启用布局.
@@ -937,6 +946,145 @@ func (w *windowBase) SetCaptionMargin(left int, top int, right int, bottom int) 
 //	@return bool
 func (w *windowBase) SetTopEx(b bool) bool {
 	return wnd.SetTop(w.GetHWND(), b)
+}
+
+// 窗口_置窗口位置. 封装系统API SetWindowPos(), 内部做了DPI适配.
+//
+// hWndInsertAfter: 在Z序中位于定位窗口之前的窗口句柄. 此参数必须是窗口HWND或以下值之一: xcc.HWND_.
+//
+// x: X坐标.
+//
+// y: Y坐标.
+//
+// cx: 宽度.
+//
+// cy: 高度.
+//
+// uFlags: 窗口大小调整和定位标志. 可以是以下值的组合: xcc.SWP_.
+func (w *windowBase) SetWindowPos(hWndInsertAfter xcc.HWND_, x, y, cx, cy int, uFlags xcc.SWP_) int {
+	return xc.XWnd_SetWindowPos(w.Handle, hWndInsertAfter, x, y, cx, cy, uFlags)
+}
+
+// 窗口_取DPI. 获取当前窗口所在显示器DPI, 返回窗口DPI.
+func (w *windowBase) GetDPI() int {
+	return xc.XWnd_GetDPI(w.Handle)
+}
+
+// 窗口_坐标转换DPI. 窗口客户区坐标转换到缩放后DPI坐标.
+//
+// pRect: 接收返回坐标.
+func (w *windowBase) RectToDPI(pRect *xc.RECT) int {
+	return xc.XWnd_RectToDPI(w.Handle, pRect)
+}
+
+// 窗口_坐标点转换DPI. 窗口客户区坐标点转换到缩放后.
+//
+// pPt: 接收返回坐标点.
+func (w *windowBase) PointToDPI(pPt *xc.POINT) int {
+	return xc.XWnd_PointToDPI(w.Handle, pPt)
+}
+
+// 窗口_取光标位置. 封装的系统API: GetCursorPos(), 内部做了DPI适配.
+//
+// pPt: 接收返回坐标点.
+func (w *windowBase) GetCursorPos(pPt *xc.POINT) bool {
+	return xc.XWnd_GetCursorPos(w.Handle, pPt)
+}
+
+// 窗口_客户区坐标点到屏幕坐标点. 封装的系统API:ClientToScreen, 内部做了DPI适配.
+//
+// pPt: 接收返回坐标点.
+func (w *windowBase) ClientToScreen(pPt *xc.POINT) bool {
+	return xc.XWnd_ClientToScreen(w.Handle, pPt)
+}
+
+// 窗口_屏幕坐标点到客户区坐标点. 封装的系统API: ScreenToClient(), 内部做了DPI适配.
+//
+// pPt: 接收返回坐标点.
+func (w *windowBase) ScreenToClient(pPt *xc.POINT) bool {
+	return xc.XWnd_ScreenToClient(w.Handle, pPt)
+}
+
+// 窗口_置DPI. 设置当前窗口DPI, 默认DPI为96.
+//
+// nDPI: DPI值.
+func (w *windowBase) SetDPI(nDPI int) int {
+	return xc.XWnd_SetDPI(w.Handle, nDPI)
+}
+
+// 窗口_置大小. 设置窗口宽高.
+//
+// 宽: width.
+//
+// 高: height.
+func (w *windowBase) SetSize(width, height int) bool {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	rc.Right = rc.Left + int32(width)
+	rc.Bottom = rc.Top + int32(height)
+	return xc.XWnd_SetRect(w.Handle, &rc)
+}
+
+// 窗口_置宽度.
+//
+// 宽: width.
+func (w *windowBase) SetWidth(width int) bool {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	rc.Right = rc.Left + int32(width)
+	return xc.XWnd_SetRect(w.Handle, &rc)
+}
+
+// 窗口_置高度.
+//
+// 高: height.
+func (w *windowBase) SetHeight(height int) bool {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	rc.Bottom = rc.Top + int32(height)
+	return xc.XWnd_SetRect(w.Handle, &rc)
+}
+
+// 窗口_取宽度.
+func (w *windowBase) GetWidth() int {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	return int(rc.Right - rc.Left)
+}
+
+// 窗口_取高度.
+func (w *windowBase) GetHeight() int {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	return int(rc.Bottom - rc.Top)
+}
+
+// 窗口_取左边.
+func (w *windowBase) GetLeft() int {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	return int(rc.Left)
+}
+
+// 窗口_取顶边.
+func (w *windowBase) GetTop() int {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	return int(rc.Top)
+}
+
+// 窗口_取右边.
+func (w *windowBase) GetRight() int {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	return int(rc.Right)
+}
+
+// 窗口_取底边.
+func (w *windowBase) GetBottom() int {
+	var rc xc.RECT
+	xc.XWnd_GetRect(w.Handle, &rc)
+	return int(rc.Bottom)
 }
 
 /*
